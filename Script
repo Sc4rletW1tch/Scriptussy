@@ -1,0 +1,64 @@
+local rs = game.ReplicatedStorage.CharacterAssets.Agatha.ShockwaveAssets
+rs.ShockwaveRemote.OnServerEvent:Connect(function(plr)
+    local hrp = plr.Character.HumanoidRootPart
+    local eff = rs.Shockwave:Clone()
+    game.Debris:AddItem(eff, 5)
+    eff.Parent = workspace
+
+    -- Emit all particles directly from Shockwave part (including its children and attachments)
+    for _, child in pairs(eff:GetChildren()) do
+        if child:IsA("ParticleEmitter") then
+            child:Emit(child.Rate) -- Emit from direct children particles
+        elseif child:IsA("Attachment") then
+            -- Emit from particles inside attachments
+            for _, attChild in pairs(child:GetChildren()) do
+                if attChild:IsA("ParticleEmitter") then
+                    attChild:Emit(attChild.Rate)
+                end
+            end
+        end
+    end
+
+    local damagesphere = rs.Parent.damagesphere:Clone()
+    game.Debris:AddItem(damagesphere, 0.5)
+    eff.Position = hrp.Position
+    damagesphere.Parent = workspace
+    damagesphere.Position = eff.Position
+
+    local ts = game.TweenService
+    ts:Create(damagesphere, TweenInfo.new(0.5), {Size = Vector3.new(35,35,35)}):Play()
+
+    local debounces = {}
+
+    damagesphere.Touched:Connect(function(hit)
+        local target = hit.Parent
+        if target:FindFirstChildOfClass("Humanoid") and target ~= plr.Character and target.limits.Protected.Value ~= true then
+            -- Check if the character is in the debounces table
+            if not debounces[target] then
+                debounces[target] = true -- Set debounce for this character
+
+                target.limits.CanUse.Value = false
+                target.limits.Protected.Value = true
+                local knockbackDirection = (target.HumanoidRootPart.Position - eff.Position).unit
+                local knockbackVelocity = knockbackDirection * 36
+                local bv = Instance.new("BodyVelocity", target.HumanoidRootPart)
+                bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                bv.Velocity = knockbackVelocity
+
+             
+                    target.Humanoid:TakeDamage(70)
+               
+                wait(0.5)
+
+                bv:Destroy()
+                wait(0.5)
+
+                target.limits.CanUse.Value = true
+                target.limits.Protected.Value = false
+                delay(5, function()
+                    debounces[target] = nil
+                end)
+            end
+        end
+    end)
+end)
